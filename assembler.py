@@ -1,227 +1,148 @@
 #!/usr/bin/python3
-import sys
+#coding: utf-8 
+listCommand = ['add','nand','lw','sw','beq','jalr','halt','noop']
 
-opcodeDict = {'add': '000',
-              'nand': '001',
-              'lw': '010',
-              'sw': '011',
-              'beq': '100',
-              'jalr': '101',
-              'halt': '110',
-              'noop': '111'}
+def def_type(i) :
+    if i[0] in listCommand or i[1] in listCommand :
+        #o type
+        if i[0]=='halt' or i[0]=='noop' :     
+            return O_type(i,0)
+        elif i[1]=='halt' or i[1]=='noop' :
+            return O_type(i,1) 
 
-typeList = {'I': ['010', '011', '100'],
-            'R': ['000', '001'],
-            'J': ['101'],
-            'O': ['110', '111']}
+        #r type
+        elif i[0]=='add' or i[0]=='nand' :  
+            return R_type(i, 0)
+        elif i[1]=='add' or i[1]=='nand' :
+            return R_type(i,1)
 
-# ---- do two complement for negative sign binary ----
-def two_complement(num):
-    if num >= 0:
-        return '{0:016b}'.format(num)
-    else:
-        # not binary +1
-        return '{0:016b}'.format((int(not_binary('{0:016b}'.format(num)), 2) + 1))
+        #i type 
+        elif i[0] =='lw' or i[0]=='sw' or i[0]=='beq' :  
+           return I_type(i,0)
+        elif i[1] =='lw' or i[1]=='sw'or i[1]=='beq':
+           return I_type(i,1)
 
-# ---- simple not func ----
-def not_binary(binary):
-    out = ''
-    for i in range(len(binary)):
-        if binary[i] == '1':
-            out += '0'
-        else:
-            out += '1'
-    return out
+        #j type
+        elif i[0] =='jalr' : 
+            return J_type(i,0)
+        elif i[1] =='jalr' :
+            return J_type(i,1)   
+        
+    elif i[1]=='.fill':
+        return i[2]
+    
+    else :
+        print('wrong opcode')
+        exit(1)
 
+def R_type(i, index_command) :
+    # print(i)
+    if i[index_command] == "add":
+        command = "000"
+    elif i[index_command] == "nand":
+        command = "001"
 
-# ---- convert binary to decinal ----
-def binaryList_to_decimal(binaryList):
-    out = []
-    for line in binaryList:
-        try:
-            out.append(int(line, 2))
-        except TypeError:
-            out.append(line)
-    return out
+    rs = '{0:03b}'.format(int(i[index_command+3])) 
+    rt = '{0:03b}'.format(int(i[index_command+2]))
+    rd = '{0:03b}'.format(int(i[index_command+1]))
+        
+    binaryNum = str(command + rs + rt + "0000000000000" + rd)
+    return binaryNum
+        
+def I_type(i, index_command) :
+    if i[index_command] == "lw":
+        command = "010"
+    elif i[index_command] == "sw":
+        command = "011"
+    else :
+        command = "100"
+        
+    rs = '{0:03b}'.format(int(i[index_command+1])) 
+    rt = '{0:03b}'.format(int(i[index_command+2]))
+    offset = '{0:016b}'.format(int(i[index_command+3]))
+    if len(offset) > 16 :           #offset ไม่เกิน 16
+        print('offset more than 16')
+        exit(1)
+        
+    if(offset[0]=='-'):
+       offset = offset.replace('0','-')
+       offset = offset.replace('1','0')
+       offset = offset.replace('-','1')
+            
+    #print(command, rs, rt, offset)
+    binaryNum = str(command + rs + rt + offset)
+    #print(binaryNum)
+    #print(int(binaryNum, 2))
+    return binaryNum
 
+def J_type(i,index_command):
+    command = "101"
+        
+    rs = '{0:03b}'.format(int(i[index_command+2])) 
+    rd = '{0:03b}'.format(int(i[index_command+1]))
+        
+    binaryNum = str(command + rs + rd + "0000000000000000")
+    #print(binaryNum)
+    #print(int(binaryNum, 2))
+    return binaryNum
 
-# ---- check opcode and translate register ----
-def opcodeAndRegisterTranslator(lines, outfileBinary, labelList):
-    i = 0
-    for line in lines:
-        i += 1
-        try:
-            outfileBinary[i - 1] += opcodeDict[line[1]]
-
-            if opcodeDict[line[1]] in typeList['I']:
-                outfileBinary[i - 1] += I_typeRegisterTranslator(line, i - 1, labelList)
-
-            elif opcodeDict[line[1]] in typeList['R']:
-                outfileBinary[i - 1] += R_typeRegisterTranslator(line)
-
-            elif opcodeDict[line[1]] in typeList['J']:
-                outfileBinary[i - 1] += J_typeRegisterTranslator(line)
-
-            elif opcodeDict[line[1]] in typeList['O']:
-                outfileBinary[i - 1] += O_typeRegisterTranslator()
-            else:
-                exit(1)  # error opcode not found error(4)
-
-        except KeyError:  # - .fill
-            if line[1] == '.fill':
-                try:
-                    outfileBinary[i - 1] = int(line[2])
-                except ValueError:
-                    outfileBinary[i - 1] = labelList.index(line[2])
-                continue
-            exit(1)
-    return outfileBinary
-
-
-# ---- translate register for I-type instruction and detect error ----
-def I_typeRegisterTranslator(line, currentLine, labelList):
-    out = ''
-    i = 2
-    while i < line.__len__():
-
-        if line[i].isdecimal():
-            if i == line.__len__() - 1:
-                if (int(line[i]) > 65535):
-                    exit(1)  # detect more than 16 bit error(3)
-                out += '{0:016b}'.format(int(line[i]))
-            else:
-                if (int(line[i]) > 7 or int(line[i]) < 0):
-                    exit(1)  # detect invalid register error(register)
-                out += '{0:03b}'.format(int(line[i]))
-        else:
-            try:
-                if (line[1] == 'lw' or line[1] == 'sw'):  # lw and sw (where in memory)
-                    out += two_complement(labelList.index(line[i]))
-                else:  # beq(how long to reach from beq+1)
-                    out += two_complement(labelList.index(line[i]) - (currentLine + 1))
-            except ValueError:
-                exit(1)  # detect undefine label error(1)
-        i += 1
-
-    return out
-
-
-# ---- translate register for R-type instruction and detect error ----
-def R_typeRegisterTranslator(line):
-    out = ''
-    i = 2
-    while i < line.__len__():
-        if line[i].isdecimal():
-            if (int(line[i]) > 7 or int(line[i]) < 0):
-                exit(1)  # detect invalid register error(register)
-            if i == line.__len__() - 1:
-                out += '0000000000000' + '{0:03b}'.format(int(line[i]))
-            else:
-                out += '{0:03b}'.format(int(line[i]))
-        else:
-            exit(1)  # exit if use non number in register field.
-        i += 1
-
-    return out
-
-
-# ---- translate register for J-type instruction and detect error ----
-def J_typeRegisterTranslator(line):
-    out = ''
-    i = 2
-    line = line[:4]
-    print ("-----")
-    print (line)
-
-    while i < line.__len__():
-        if (int(line[i]) > 7 or int(line[i]) < 0):
-            exit(1)  # detect invalid register error(register)
-        if line[i].isdecimal():
-            out += '{0:03b}'.format(int(line[i]))
-        else:
-            exit(1)  # exit if use non number in register field.
-        i += 1
-    out += '{0:016b}'.format(0)
-    return out
-
-
-# ---- translate register for O-type instruction but O-type don't have register ----
-def O_typeRegisterTranslator():
-    return '{0:022b}'.format(0)
-
-
-# ---- split words in instruction by tabs and delete newline in the end of each instruction ----
-def splitWord(lines):
-    out = []
-    outFile = []
-    for line in lines:
-        line = line.split('\t')
-        line.append(line.pop().split('\n')[0])
-        if line == ['']: # cut out the blank newline
-            continue
-        out.append(line[:5])
-        outFile.append('0000000')
-    print(out)
-    return out, outFile
-
-
-# ---- collect label to list of label and detect duplicate label ----
-def collectLabel(lines):
-    out = []
-    for line in lines:
-        try:
-            if line[0] == '':
-                raise ValueError
-            if line[0][0].isdecimal():
-                exit(1)  # detect first label is number error
-            if len(line[0]) > 6:
-                exit(1)  # detect more than 6 char error in label
-            if out.index(line[0]) >= 0:
-                exit(1)  # detect duplicate label error(2)
-        except ValueError:
-            out.append(line[0])
-            continue
-    return out
-
-
-def main():
-    # ----- start load file into 'lines' ---------
-    try:
-        inFile = sys.argv[1]
-    except IndexError:
-        inFile = 'myfibo.asm'
-
-    try:
-        outFile = sys.argv[2]
-    except IndexError:
-        outFile = 'myfibo.out'
-
-    file = open(inFile, 'r')
-    lines = file.readlines()
-    file.close()
-    # ----- end file load -------------
-
-    # ---- Split tabs and space, prepare 7 MSB in '0' ----
-    splittedlines, outFileBinary = splitWord(lines)
-
-    # ---- collect label for use later ----
-    labelList = collectLabel(splittedlines)
-
-    # ---- translate instructions and store a list of binary in 'out' ----
-    out = opcodeAndRegisterTranslator(splittedlines, outFileBinary, labelList)
-
-    # ---- convert binary to decimal ----
-    out = binaryList_to_decimal(out)
-
-    # ---- start write result to file ----
-    file = open(outFile, 'w')
-    for i in range(out.__len__()):
-        if i == out.__len__() - 1:
-            file.writelines(str(out[i]))
-            break
-        file.writelines(str(out[i]) + '\n')
-        # ---- end write result to file ----
-
-
-if __name__ == "__main__":
-    main()
+def O_type(i,index_command):
+    
+    if i[index_command] == "halt" :
+        command = "110"
+    elif i[index_command] == "noop" :
+        command = "111" 
+        
+    binaryNum = str(command + "0000000000000000000000")
+        
+    return binaryNum
+   
+if __name__ == "__main__" :
+    register_bit = 8 
+    computer_bit = 32 
+    #word_address = 65536 ;
+    
+    word_bit = 65536*16
+    wb = word_bit 
+   # print(wb)
+    
+    f = open('test_assembly.txt')
+    line = f.readlines()
+    f.close()
+    lineCommand = []
+    for i in range(len(line)) :
+        lineCommand.append([])
+    count = 0
+    
+    label = []
+    
+    for i in line :
+        tmp = i.split()
+        last = -2 if len(tmp[-1])>6 else -1
+        
+        if(tmp[0] not in listCommand) :     #เช็ค label ซ้ำ
+            if(tmp[0] not in label):
+                label.append(tmp[0])
+            else :
+                print('dupilicate label')
+                exit(1)
+        
+        if (not tmp[last].replace('-','0').isnumeric()) and tmp[last] not in listCommand :  #เปลี่ยน label เป็นตัวเลข
+            change = 0
+            for i in range( len(line) ) :
+                if( line[i].find(tmp[last]) == 0 ) :
+                    tmp[last] = str(i)
+                    if( i < count and tmp[1] != '.fill') :
+                        tmp[last] = str(i-count)
+                    change = 1
+                        
+            if(not change):
+                print("label undefine")
+        
+        lineCommand[count].extend(tmp)
+        count = count+1
+    
+    for i in lineCommand :
+       try: print(def_type(i))
+       except Exception as e:
+           exit(1)

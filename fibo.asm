@@ -1,97 +1,40 @@
-	lw	0	1	x	#load x
-	lw	0	4	fibA	#load fibo addr
-	lw	0	2	one	#temp1=1
-	jalr	4	7	#call fibo
-end	halt
-fibo	lw	0	6	neg	#temp2=-1	
-	beq	0	1	retX	#if x=0 return x
-	beq	2	1	retX	#if x=1	return x
-	add	1	6	1	#x - 1
-	sw	5	7	stack	#save return addr
-	add	5	2	5	#sp + 1
-	sw	5	1	stack	#save x-1
-	add	5	2	5	#sp + 1
-	jalr	4	7	#call fib x-1
-	lw	0	6	neg	#temp2=-1
-	add	5	6	5	#sp - 1
-	lw	5	1	stack	#load x-1
-	add	5	6	5	#sp - 1
-	lw	5	7	stack	#load old return addr
-	add	1	6	1	# (x-1)-1 = x-2
-	sw	5	3	stack	#save first return
-	add	5	2	5	#sp + 1
-	sw	5	7	stack	#save return addr
-	add	5	2	5	#sp + 1
-	jalr	4	7	#call fib x-2
-	lw	0	6	neg	#temp2=-1
-	add	5	6	5	#sp - 1
-	lw	5	7	stack	#load return addr
-	add	5	6	5	#sp - 1
-	lw	5	6	stack	#load first return to 6
-	add	3	6	3	#add first return and second return
-	jalr	7	6	#return
-retX	add	0	1	3	#mov x from r1 to r3
-	jalr	7	6	return
-one	.fill	1
-neg	.fill	-1
-x	.fill	6
-fibA	.fill	fibo
-stack	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
-	.fill	0
+		lw		0	1	input
+		lw      0   6   pos1
+		lw      0   4	fib
+		jalr	4	7
+		halt
+
+fib		beq		1	0	re0
+		beq		1	6	re1
+		lw		0	2	neg1
+		add		1	2	1
+
+		lw		0	4	pos1
+		add		3	4	0
+		add		1	1	2
+		beq		1	0	return
+		sw		5	4	0
+		add		5	4	5
+		sw		5	3	0
+
+for		lw		0	6	neg1
+		add		1	6	1
+		lw		0	4	5
+		add		5	6	5
+		lw		0	2	5
+		add		3	2	4
+		sw		5	4	0
+		lw		0	6	pos1
+		add		5	6	5
+		sw		5	3	5
+		
+		beq		1	0	return
+		beq		0	0	for
+
+re0		add		3	0	0
+		beq		0	0	return
+re1		lw		0	3	pos1
+return	jalr	7	4	
+input	.fill	5
+pos1	.fill	1
+neg1	.fill	-1
