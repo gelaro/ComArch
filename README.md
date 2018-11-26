@@ -1,2 +1,2 @@
 # ComArchProject
-#python assembler for Computer Architecture Project
+python assembler for Computer Architecture Project
